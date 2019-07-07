@@ -20,6 +20,7 @@ void platform_init()
 	if (isr_init() != ESP_OK) restart();
 	INIT_DRIVER(vspi)
 	INIT_DRIVER(i2c)
+	INIT_DRIVER(dht)
 	INIT_DRIVER(hub75)
 	INIT_DRIVER(mpr121)
 	INIT_DRIVER(neopixel)
