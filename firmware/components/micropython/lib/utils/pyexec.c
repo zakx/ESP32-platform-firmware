@@ -380,6 +380,8 @@ raw_repl_reset:
     return 0;
 }
 
+int renze_repl_exit = 0;
+
 int pyexec_friendly_repl(void) {
     vstr_t line;
     vstr_init(&line, 32);
@@ -431,6 +433,8 @@ friendly_repl_reset:
         }
         #endif
 
+        if (renze_repl_exit) { renze_repl_exit = 0; return -42;}
+        
         vstr_reset(&line);
         int ret = readline(&line, ">>> ");
         mp_parse_input_kind_t parse_input_kind = MP_PARSE_SINGLE_INPUT;
@@ -453,8 +457,9 @@ friendly_repl_reset:
             // exit for a soft reset
             mp_hal_stdout_tx_str("\r\n");
             // No need to return, we can reset here
-            prepareSleepReset(0, "ESP32: soft reboot\r\n");
-            esp_restart(); // no return !!
+            //prepareSleepReset(0, "ESP32: soft reboot\r\n");
+            //esp_restart(); // no return !!
+			return -42;
             //vstr_clear(&line);
             return PYEXEC_FORCED_EXIT;
         } else if (ret == CHAR_CTRL_E) {

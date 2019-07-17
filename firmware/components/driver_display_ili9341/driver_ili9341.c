@@ -158,8 +158,8 @@ esp_err_t driver_ili9341_write_initData(const uint8_t * data)
 		if(!cmd) return ESP_OK; //END
 		len = *data++;
 		//printf("Writing command %02x with %u parameters...\n", cmd, len);
-		for (uint8_t i = 0; i < len; i++) printf("%02x, ", data[i]);
-		printf("\n");
+		//for (uint8_t i = 0; i < len; i++) printf("%02x, ", data[i]);
+		//printf("\n");
 		driver_ili9341_send(&cmd, 1, false);
 		driver_ili9341_send(data, len, true);
 		data+=len;

@@ -1099,6 +1099,19 @@ STATIC mp_obj_t mod_machine_set_heap_size (mp_obj_t _value)
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(mod_machine_set_heap_size_obj, mod_machine_set_heap_size);
 
+extern int renze_repl_exit;
+extern char* renze_micropython_app_name;
+extern bool renze_micropython_app_start;
+
+STATIC mp_obj_t mod_machine_app (mp_obj_t _app) {
+    const char *app = mp_obj_str_get_str(_app);
+	//physicalPathN(app, renze_micropython_app_name, 512);
+	strcpy(renze_micropython_app_name, app);
+	renze_repl_exit = true;
+	renze_micropython_app_start = true;
+    return mp_const_none;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(mod_machine_app_obj, mod_machine_app);
 
 //===============================================================
 STATIC const mp_rom_map_elem_t machine_module_globals_table[] = {
@@ -1127,6 +1140,8 @@ STATIC const mp_rom_map_elem_t machine_module_globals_table[] = {
         { MP_OBJ_NEW_QSTR(MP_QSTR_nvs_get_u8),			MP_ROM_PTR(&mod_machine_nvs_get_u8_obj) },
         { MP_OBJ_NEW_QSTR(MP_QSTR_nvs_set_u16),			MP_ROM_PTR(&mod_machine_nvs_set_u16_obj) },
         { MP_OBJ_NEW_QSTR(MP_QSTR_nvs_get_u16),			MP_ROM_PTR(&mod_machine_nvs_get_u16_obj) },
+        
+        { MP_OBJ_NEW_QSTR(MP_QSTR_app),			MP_ROM_PTR(&mod_machine_app_obj) },
         
         { MP_OBJ_NEW_QSTR(MP_QSTR_nvs_setint),			MP_ROM_PTR(&mod_machine_nvs_set_int_obj) },
         { MP_OBJ_NEW_QSTR(MP_QSTR_nvs_getint),			MP_ROM_PTR(&mod_machine_nvs_get_int_obj) },
