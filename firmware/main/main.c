@@ -3,6 +3,7 @@
 #include "include/ota_update.h"
 
 extern void micropython_entry(void);
+extern void micropython_renze(void);
 
 void app_main()
 {
@@ -21,6 +22,7 @@ void app_main()
 			badge_ota_update();
 			break;
 		default:
-			micropython_entry();
+			//micropython_entry();
+			micropython_renze();
 	}
 }

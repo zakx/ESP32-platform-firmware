@@ -482,3 +482,41 @@ void nlr_jump_fail(void *val) {
     esp_restart();
 }
 
+
+
+
+/* ----- */
+
+void micropython_renze(void)
+{
+	MPY_DEFAULT_STACK_SIZE = CONFIG_MICROPY_STACK_SIZE * 1024;
+	MPY_DEFAULT_HEAP_SIZE = CONFIG_MICROPY_HEAP_SIZE * 1024;
+
+	//Configuration
+	mp_task_stack_len = 64*1024;//MPY_DEFAULT_STACK_SIZE;
+	mpy_heap_size     = 3584*1024;//MPY_DEFAULT_HEAP_SIZE;
+
+	//Stack
+	mp_task_stack_len &= 0x7FFFFFF8;
+	mp_task_stack_len = mp_task_stack_len / sizeof(StackType_t);
+	mp_task_stack = heap_caps_malloc((mp_task_stack_len * sizeof(StackType_t))+8, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
+	if (mp_task_stack == NULL) { ESP_LOGE("MicroPython", "Error allocating stack, HALTED."); return; }
+	mp_task_stack_end = mp_task_stack + ((mp_task_stack_len * sizeof(StackType_t)) + 8);
+	ESP_LOGE("MicroPython", "MPy stack: %p - %p (%d)", mp_task_stack, mp_task_stack_end, mp_task_stack_len+8);
+	
+    //Heap
+    mpy_heap_size &= 0x7FFFFFF0;	
+	mp_task_heap = malloc(mpy_heap_size+16);
+    if (mp_task_heap == NULL) { ESP_LOGE("MicroPython", "Error allocating heap, HALTED."); return; }
+	ESP_LOGE("MicroPython", "MPy heap: %p - %p (%d)", mp_task_heap, mp_task_heap+mpy_heap_size+64, mpy_heap_size);
+	
+	nvs_close(mpy_nvs_handle);
+
+	//Creating the microPython task
+	MainTaskHandle = xTaskCreateStaticPinnedToCore(&mp_task, "mp_task", mp_task_stack_len, NULL, CONFIG_MICROPY_TASK_PRIORITY, mp_task_stack, &mp_task_tcb, 0);
+
+	//After task exits
+	if (!MainTaskHandle) ESP_LOGE("MicroPython", "Error creating MicroPython task, HALTED.");
+	ESP_LOGE("MicroPython", "Main task exit, stack used: %d", CONFIG_MAIN_TASK_STACK_SIZE - uxTaskGetStackHighWaterMark(NULL));
+}
+
