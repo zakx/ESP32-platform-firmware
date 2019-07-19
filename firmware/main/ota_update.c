@@ -38,6 +38,12 @@
 
 #include "driver_framebuffer.h"
 
+#ifdef CONFIG_DRIVER_HUB75_ENABLE
+#include "color.h"
+extern void compositor_clear();
+extern void compositor_addText(char *text, Color color, int x, int y);
+#endif
+
 #define TAG "ota-update"
 
 static uint8_t buffer[1024];
@@ -133,6 +139,13 @@ void graphics_show(const char* text, uint8_t percentage, bool showPercentage, bo
 				if (showPercentage) driver_framebuffer_print(buffer);
 				driver_framebuffer_flush();
 			#endif
+        #endif
+		#ifdef CONFIG_DRIVER_HUB75_ENABLE
+    		char buff[4];
+    		Color col = {.value=0xffffffff};
+    		sprintf(buff, "%d%%", percentage);
+    		compositor_clear();
+			compositor_addText(buff, col, 6, 1);
 		#endif
 	if (percentage>lastPercentage) lastPercentage = percentage;
 	if (showPercentage) {
