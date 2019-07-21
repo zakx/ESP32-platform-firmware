@@ -4,18 +4,24 @@
 
 extern void micropython_entry(void);
 
+extern esp_err_t unpack_first_boot_zip(void);
+
 void app_main()
 {
 	logo();
 	bool is_first_boot = nvs_init();
 	platform_init();
-	
-	if (is_first_boot) { //Deze flag gebruiken we op het moment nergens meer voor.
-		printf("\r\n\r\nAll your base are belong to us.\r\n\r\n");
+
+	if (is_first_boot) {
+		printf("Attempting to unpack FAT initialization ZIP file...\b");
+		if (unpack_first_boot_zip() != ESP_OK) {
+			printf("An error occured while unpacking the ZIP file!\b");
+			restart();
+		}
 	}
-		
+
 	int magic = get_magic();
-		
+
 	switch(magic) {
 		case MAGIC_OTA:
 			badge_ota_update();
