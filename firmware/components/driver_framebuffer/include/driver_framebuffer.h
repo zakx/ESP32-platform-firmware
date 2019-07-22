@@ -37,11 +37,19 @@ extern const GFXfont pixelade9pt7b;
 extern const GFXfont pixelade13pt7b;
 extern const GFXfont weather42pt8b;
 
+/* Flags */
+#define FB_FLAG_FORCE          1
+#define FB_FLAG_FULL           2
+#define FB_FLAG_LUT_GREYSCALE  4
+#define FB_FLAG_LUT_NORMAL     8
+#define FB_FLAG_LUT_FAST      16
+#define FB_FLAG_LUT_FASTEST   32
+
 esp_err_t driver_framebuffer_init();
-void driver_framebuffer_flush();
+void driver_framebuffer_flush(uint32_t flags);
 void driver_framebuffer_get_dirty(int16_t* x0, int16_t* y0, int16_t* x1, int16_t* y1);
 bool driver_framebuffer_is_dirty();
-void driver_framebuffer_set_greyscale(bool use);
+void driver_framebuffer_set_dirty(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1);
 void driver_framebuffer_setFlags(uint8_t newFlags);
 
 //Size

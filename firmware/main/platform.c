@@ -34,7 +34,7 @@ void fatal_error(const char* message)
 			driver_framebuffer_print("Failure while starting driver.\n");
 			driver_framebuffer_print(message);
 			driver_framebuffer_print("\n\nRestart in 10 seconds...\n");
-			driver_framebuffer_flush();
+			driver_framebuffer_flush(0);
 		#endif
 		#if defined(CONFIG_DRIVER_SSD1306_ENABLE) || defined(CONFIG_DRIVER_ERC12846_ENABLE)
 			driver_framebuffer_fill(COLOR_BLACK);
@@ -45,7 +45,7 @@ void fatal_error(const char* message)
 			driver_framebuffer_print("Fatal error\n");
 			driver_framebuffer_print("Driver failed:\n");
 			driver_framebuffer_print(message);
-			driver_framebuffer_flush();
+			driver_framebuffer_flush(0);
 	#endif
 	#endif
 	}

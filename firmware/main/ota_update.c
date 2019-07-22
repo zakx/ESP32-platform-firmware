@@ -93,7 +93,7 @@ void graphics_show(const char* text, uint8_t percentage, bool showPercentage, bo
 					} else {
 						//driver_framebuffer_setFlags(DISPLAY_FLAG_8BITPIXEL + DISPLAY_FLAG_LUT(DRIVER_EINK_LUT_FASTEST));
 					}
-					driver_framebuffer_flush();
+					driver_framebuffer_flush(0);
 				}
 			#endif
 			#ifdef CONFIG_DRIVER_ILI9341_ENABLE
@@ -119,7 +119,7 @@ void graphics_show(const char* text, uint8_t percentage, bool showPercentage, bo
 				driver_framebuffer_setCursor(0,driver_framebuffer_getHeight()-15);
 				driver_framebuffer_setTextScale(1,1);
 				driver_framebuffer_print("BADGE.TEAM\n");
-				driver_framebuffer_flush();
+				driver_framebuffer_flush(0);
 			#endif
 			#if defined(CONFIG_DRIVER_SSD1306_ENABLE) || defined(CONFIG_DRIVER_ERC12864_ENABLE)
 				driver_framebuffer_fill(COLOR_BLACK);
@@ -134,7 +134,7 @@ void graphics_show(const char* text, uint8_t percentage, bool showPercentage, bo
 				char buffer[16];
 				snprintf(buffer, 16, "%*u%%", 3, percentage);
 				if (showPercentage) driver_framebuffer_print(buffer);
-				driver_framebuffer_flush();
+				driver_framebuffer_flush(0);
 			#endif
 			#ifdef CONFIG_DRIVER_HUB75_ENABLE
 				compositor_disable(); //Don't use the compositor if we have the framebuffer driver
@@ -152,7 +152,7 @@ void graphics_show(const char* text, uint8_t percentage, bool showPercentage, bo
 				char buff[4];
 				sprintf(buff, "%d%%", percentage);
 				driver_framebuffer_print(buff);
-				driver_framebuffer_flush();
+				driver_framebuffer_flush(0);
 			#endif
 		#else
 			#ifdef CONFIG_DRIVER_HUB75_ENABLE

@@ -73,12 +73,13 @@ static mp_obj_t framebuffer_fill(mp_uint_t n_args, const mp_obj_t *args)
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(framebuffer_fill_obj, 0, 1, framebuffer_fill);
 
-static mp_obj_t framebuffer_flush()
+static mp_obj_t framebuffer_flush(mp_uint_t n_args, const mp_obj_t *args)
 {
-	driver_framebuffer_flush();
+	uint32_t flags = n_args == 0 ? 0 : mp_obj_get_int(args[0]);
+	driver_framebuffer_flush(flags);
 	return mp_const_none;
 }
-static MP_DEFINE_CONST_FUN_OBJ_0(framebuffer_flush_obj, framebuffer_flush);
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(framebuffer_flush_obj, 0, 1, framebuffer_flush);
 
 static mp_obj_t framebuffer_get_width()
 {
@@ -178,13 +179,6 @@ static mp_obj_t framebuffer_get_dirty()
 	return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_0(framebuffer_get_dirty_obj, framebuffer_get_dirty);
-
-static mp_obj_t framebuffer_set_greyscale(mp_obj_t value_in)
-{
-        driver_framebuffer_set_greyscale(mp_obj_get_int(value_in));
-	return mp_const_none;
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_1(framebuffer_set_greyscale_obj, framebuffer_set_greyscale);
 
 static mp_obj_t framebuffer_raw(mp_uint_t n_args, const mp_obj_t *args)
 {
@@ -420,7 +414,6 @@ static const mp_rom_map_elem_t framebuffer_module_globals_table[] = {
 	{MP_ROM_QSTR(MP_QSTR_rect), MP_ROM_PTR(&framebuffer_rect_obj)},
 	{MP_ROM_QSTR(MP_QSTR_circle), MP_ROM_PTR(&framebuffer_circle_obj)},
 	{MP_ROM_QSTR(MP_QSTR_dirty), MP_ROM_PTR(&framebuffer_get_dirty_obj)},
-	{MP_ROM_QSTR(MP_QSTR_greyscale), MP_ROM_PTR(&framebuffer_set_greyscale_obj)},
 	{MP_ROM_QSTR(MP_QSTR_raw), MP_ROM_PTR(&framebuffer_raw_obj)},
 	{MP_ROM_QSTR(MP_QSTR_png), MP_ROM_PTR(&framebuffer_png_obj)},
 	{MP_ROM_QSTR(MP_QSTR_width), MP_ROM_PTR(&framebuffer_get_width_obj)},
