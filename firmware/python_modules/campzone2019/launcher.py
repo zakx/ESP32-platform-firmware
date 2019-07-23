@@ -259,5 +259,6 @@ if not machine.nvs_getint("system", 'day0_updated'):
 start()
 init_power_management()
 
+# TODO: set up the `go_to_sleep` handler instead of None
 menu = term_menu.UartMenu(None, pm)
 menu.main()
