@@ -38,4 +38,10 @@ menu "Driver: ILI9341 LCD display"
 		depends on DRIVER_ILI9341_ENABLE
 		int "GPIO pin used for backlight"
 		default 5
+	
+	config ILI9341_ORIENTATION
+		depends on DRIVER_ILI9341_ENABLE
+		int "Orientation setting"
+		range 0 3
+		default 0
 endmenu

@@ -60,7 +60,7 @@ static esp_err_t driver_ili9341_claim_spi(void)
 
 	static const spi_bus_config_t buscfg = {
 		.mosi_io_num     = CONFIG_PIN_NUM_ILI9341_MOSI,
-		.miso_io_num     = -1,//CONFIG_PIN_NUM_ILI9341_MISO,
+		.miso_io_num     = CONFIG_PIN_NUM_ILI9341_MISO,
 		.sclk_io_num     = CONFIG_PIN_NUM_ILI9341_CLK,
 		.quadwp_io_num   = -1,
 		.quadhd_io_num   = -1,
@@ -69,7 +69,7 @@ static esp_err_t driver_ili9341_claim_spi(void)
 	esp_err_t res = spi_bus_initialize(VSPI_HOST, &buscfg, 2);
 	if (res != ESP_OK) return res;
 	static const spi_device_interface_config_t devcfg = {
-		.clock_speed_hz = 20 * 1000 * 1000,
+		.clock_speed_hz = 40 * 1000 * 1000,
 		.mode           = 0,  // SPI mode 0
 		.spics_io_num   = CONFIG_PIN_NUM_ILI9341_CS,
 		.queue_size     = 1,
@@ -191,12 +191,55 @@ esp_err_t driver_ili9341_set_addr_window(uint16_t x, uint16_t y, uint16_t w, uin
 	return ESP_OK;
 }*/
 
+#define MADCTL_MY  0x80  ///< Bottom to top
+#define MADCTL_MX  0x40  ///< Right to left
+#define MADCTL_MV  0x20  ///< Reverse Mode
+#define MADCTL_ML  0x10  ///< LCD refresh Bottom to top
+#define MADCTL_RGB 0x00  ///< Red-Green-Blue pixel order
+#define MADCTL_BGR 0x08  ///< Blue-Green-Red pixel order
+#define MADCTL_MH 0x04 ///< LCD refresh right to left
+
+esp_err_t driver_ili9341_set_cfg(uint8_t rotation, bool colorMode)
+{
+	rotation = rotation & 0x03;
+	uint8_t m = 0;
+
+	switch (rotation) {
+	        case 0:
+	            m |= MADCTL_MX;
+	            break;
+	        case 1:
+	            m |= MADCTL_MV;
+	            break;
+	        case 2:
+	            m |= MADCTL_MY;
+	            break;
+	        case 3:
+	            m |= (MADCTL_MX | MADCTL_MY | MADCTL_MV);
+	            break;
+	}
+	
+	if (colorMode) {
+		m |= MADCTL_BGR;
+	} else {
+		m |= MADCTL_RGB;
+	}
+
+	uint8_t commands[2] = {ILI9341_MADCTL, m};
+	esp_err_t res = driver_ili9341_send(commands, 1, false);
+	if (res != ESP_OK) return res;
+	res = driver_ili9341_send(commands+1, 1, true);
+	return res;
+}
+
 esp_err_t driver_ili9341_reset(void) {
+#if CONFIG_PIN_NUM_ILI9341_RESET >= 0
 	esp_err_t res = gpio_set_level(CONFIG_PIN_NUM_ILI9341_RESET, false);
 	if (res != ESP_OK) return res;
 	ets_delay_us(200000);
 	res = gpio_set_level(CONFIG_PIN_NUM_ILI9341_RESET, true);
 	if (res != ESP_OK) return res;
+#endif
 	ets_delay_us(200000);
 	return ESP_OK;
 }
@@ -264,8 +307,10 @@ esp_err_t driver_ili9341_init(void)
 	if (!internalBuffer) return ESP_FAIL;
 	
 	//Initialize reset GPIO pin
+#if CONFIG_PIN_NUM_ILI9341_RESET >= 0
 	res = gpio_set_direction(CONFIG_PIN_NUM_ILI9341_RESET, GPIO_MODE_OUTPUT);
 	if (res != ESP_OK) return res;
+#endif
 
 	//Initialize data/clock select GPIO pin
 	res = gpio_set_direction(CONFIG_PIN_NUM_ILI9341_DCX, GPIO_MODE_OUTPUT);
@@ -287,6 +332,10 @@ esp_err_t driver_ili9341_init(void)
 	res = driver_ili9341_send_command(ILI9341_DISPON);
 	if (res != ESP_OK) return res;
 	
+	//Configure orientation
+	res = driver_ili9341_set_cfg(CONFIG_ILI9341_ORIENTATION, false);
+	if (res != ESP_OK) return res;
+
 	//Turn on backlight
 	res = driver_ili9341_set_backlight(true);
 	if (res != ESP_OK) return res;

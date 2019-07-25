@@ -9,8 +9,8 @@
 #include "extmod/vfs.h"
 #include "extmod/vfs_native.h"
 
-#include <driver_framebuffer.h>
-#include <driver_framebuffer_devices.h>
+#include "driver_framebuffer.h"
+#include "driver_framebuffer_devices.h"
 
 #ifdef CONFIG_DRIVER_FRAMEBUFFER_ENABLE
 
@@ -39,6 +39,23 @@ static mp_obj_t framebuffer_cursor(mp_uint_t n_args, const mp_obj_t *args) {
 	return mp_obj_new_tuple(2, tuple);
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(framebuffer_cursor_obj, 0, 2, framebuffer_cursor);
+
+static mp_obj_t framebuffer_textScale(mp_uint_t n_args, const mp_obj_t *args) {
+	uint8_t w, h;
+	if (n_args == 1) {
+		//To-do: accept tuple
+	} else if (n_args > 1) {
+                w = mp_obj_get_int(args[0]);
+                h = mp_obj_get_int(args[1]);
+                driver_framebuffer_setTextScale(w,h);
+        }
+	mp_obj_t tuple[2];
+	driver_framebuffer_getTextScale(&w,&h);
+	tuple[0] = mp_obj_new_int(w);
+	tuple[1] = mp_obj_new_int(h);
+	return mp_obj_new_tuple(2, tuple);
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(framebuffer_textScale_obj, 0, 2, framebuffer_textScale);
 
 static mp_obj_t framebuffer_get_pixel(mp_obj_t x_in, mp_obj_t y_in) {
 	int x = mp_obj_get_int(x_in);
@@ -401,26 +418,46 @@ STATIC mp_obj_t framebuffer_png_info(mp_obj_t obj_filename)
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(framebuffer_png_info_obj, framebuffer_png_info);
 
 static const mp_rom_map_elem_t framebuffer_module_globals_table[] = {
-	{MP_ROM_QSTR(MP_QSTR_orientation), MP_ROM_PTR(&framebuffer_orientation_obj)},
-	{MP_ROM_QSTR(MP_QSTR_cursor), MP_ROM_PTR(&framebuffer_cursor_obj)},
+	/* Pixel */
 	{MP_ROM_QSTR(MP_QSTR_get), MP_ROM_PTR(&framebuffer_get_pixel_obj)},
 	{MP_ROM_QSTR(MP_QSTR_set), MP_ROM_PTR(&framebuffer_set_pixel_obj)},
-	{MP_ROM_QSTR(MP_QSTR_textColor), MP_ROM_PTR(&framebuffer_set_text_color_obj)},
+
+	/* Drawing */
 	{MP_ROM_QSTR(MP_QSTR_fill), MP_ROM_PTR(&framebuffer_fill_obj)},
-	{MP_ROM_QSTR(MP_QSTR_flush), MP_ROM_PTR(&framebuffer_flush_obj)},
-	{MP_ROM_QSTR(MP_QSTR_print), MP_ROM_PTR(&framebuffer_print_obj)},
-	{MP_ROM_QSTR(MP_QSTR_font), MP_ROM_PTR(&framebuffer_font_obj)},
 	{MP_ROM_QSTR(MP_QSTR_line), MP_ROM_PTR(&framebuffer_line_obj)},
 	{MP_ROM_QSTR(MP_QSTR_rect), MP_ROM_PTR(&framebuffer_rect_obj)},
 	{MP_ROM_QSTR(MP_QSTR_circle), MP_ROM_PTR(&framebuffer_circle_obj)},
-	{MP_ROM_QSTR(MP_QSTR_dirty), MP_ROM_PTR(&framebuffer_get_dirty_obj)},
-	{MP_ROM_QSTR(MP_QSTR_raw), MP_ROM_PTR(&framebuffer_raw_obj)},
-	{MP_ROM_QSTR(MP_QSTR_png), MP_ROM_PTR(&framebuffer_png_obj)},
-	{MP_ROM_QSTR(MP_QSTR_width), MP_ROM_PTR(&framebuffer_get_width_obj)},
-	{MP_ROM_QSTR(MP_QSTR_height), MP_ROM_PTR(&framebuffer_get_height_obj)},
-	{MP_ROM_QSTR(MP_QSTR_png_info), MP_ROM_PTR(&framebuffer_png_info_obj)},
+
+	/* Text */
+	{MP_ROM_QSTR(MP_QSTR_cursor), MP_ROM_PTR(&framebuffer_cursor_obj)},
+	{MP_ROM_QSTR(MP_QSTR_textColor), MP_ROM_PTR(&framebuffer_set_text_color_obj)},
+	{MP_ROM_QSTR(MP_QSTR_textScale), MP_ROM_PTR(&framebuffer_textScale_obj)},
+	{MP_ROM_QSTR(MP_QSTR_font), MP_ROM_PTR(&framebuffer_font_obj)},
+	{MP_ROM_QSTR(MP_QSTR_print), MP_ROM_PTR(&framebuffer_print_obj)},
 	{MP_ROM_QSTR(MP_QSTR_get_string_width), MP_ROM_PTR(&framebuffer_get_string_width_obj)},
 	{MP_ROM_QSTR(MP_QSTR_get_string_height), MP_ROM_PTR(&framebuffer_get_string_height_obj)},
+
+	/* Control */
+	{MP_ROM_QSTR(MP_QSTR_orientation), MP_ROM_PTR(&framebuffer_orientation_obj)},
+	{MP_ROM_QSTR(MP_QSTR_flush), MP_ROM_PTR(&framebuffer_flush_obj)},
+	{MP_ROM_QSTR(MP_QSTR_dirty), MP_ROM_PTR(&framebuffer_get_dirty_obj)},
+	{MP_ROM_QSTR(MP_QSTR_width), MP_ROM_PTR(&framebuffer_get_width_obj)},
+	{MP_ROM_QSTR(MP_QSTR_height), MP_ROM_PTR(&framebuffer_get_height_obj)},
+
+	/* PNG file format */
+	{MP_ROM_QSTR(MP_QSTR_png), MP_ROM_PTR(&framebuffer_png_obj)},
+	{MP_ROM_QSTR(MP_QSTR_png_info), MP_ROM_PTR(&framebuffer_png_info_obj)},
+
+	/* Direct access */
+	{MP_ROM_QSTR(MP_QSTR_raw), MP_ROM_PTR(&framebuffer_raw_obj)},
+
+	/* Constants */
+	{MP_ROM_QSTR(MP_QSTR_FLAG_FORCE), MP_ROM_INT(FB_FLAG_FORCE) },
+	{MP_ROM_QSTR(MP_QSTR_FLAG_FULL), MP_ROM_INT(FB_FLAG_FULL) },
+	{MP_ROM_QSTR(MP_QSTR_LUT_GREYSCALE), MP_ROM_INT(FB_FLAG_LUT_GREYSCALE) },
+	{MP_ROM_QSTR(MP_QSTR_LUT_NORMAL), MP_ROM_INT(FB_FLAG_LUT_NORMAL) },
+	{MP_ROM_QSTR(MP_QSTR_LUT_FAST), MP_ROM_INT(FB_FLAG_LUT_FAST) },
+	{MP_ROM_QSTR(MP_QSTR_LUT_FASTEST), MP_ROM_INT(FB_FLAG_LUT_FASTEST) },
 };
 
 static MP_DEFINE_CONST_DICT(framebuffer_module_globals, framebuffer_module_globals_table);
