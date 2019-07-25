@@ -25,7 +25,7 @@ struct Cwindow {
 
 	/* Data buffer */
 	Color** frames;                // Array of frames
-	uin16_t numFrames, _currFrame; // Amount of frames
+	uint16_t numFrames, _currFrame; // Amount of frames
 
 	/* Animation */
 	uint8_t aniDiv, _currAniDiv;   // Go to next frame every X steps
