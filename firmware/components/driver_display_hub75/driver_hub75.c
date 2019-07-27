@@ -15,7 +15,6 @@
 #include "freertos/queue.h"
 
 #include "include/driver_hub75.h"
-#include "include/compositor.h"
 
 #include "esp_log.h"
 
@@ -49,7 +48,8 @@
 
 int brightness=CONFIG_HUB75_DEFAULT_BRIGHTNESS;
 int framerate=20;
-Color *hub75_framebuffer = NULL;
+
+uint8_t *hub75_framebuffer = NULL;
 
 bool driver_hub75_active;
 i2s_parallel_buffer_desc_t bufdesc[2][1<<BITPLANE_CNT];
@@ -82,18 +82,22 @@ void render16()
 				//Don't display for the first cycle to remove line bleed
 				if (x<2 || x>=brightness) v|= BIT_OE;
 				if (x==31) v|= BIT_LAT;         //latch on last bit...
-				Color c1;
+				uint8_t pixelR, pixelG, pixelB;
 				int yreal = y;
 				int xreal = 31-x;
 				if (hub75_framebuffer) {
-					c1 = hub75_framebuffer[yreal*CONFIG_HUB75_WIDTH+xreal];
+					pixelR = hub75_framebuffer[(yreal*CONFIG_HUB75_WIDTH+xreal)*3];
+					pixelG = hub75_framebuffer[(yreal*CONFIG_HUB75_WIDTH+xreal)*3 + 1];
+					pixelB = hub75_framebuffer[(yreal*CONFIG_HUB75_WIDTH+xreal)*3 + 2];
 				} else {
-					c1.value = 0; //If no framebuffer available display is off.
+					pixelR = 0; //If no framebuffer available display is off.
+					pixelG = 0;
+					pixelB = 0;
 				}
 					
-				if (valToPwm(c1.RGB[3]) & mask) v|= BIT_R1;
-				if (valToPwm(c1.RGB[2]) & mask) v|= BIT_G1;
-				if (valToPwm(c1.RGB[1]) & mask) v|= BIT_B1;                               
+				if (valToPwm(pixelR) & mask) v|= BIT_R1;
+				if (valToPwm(pixelG) & mask) v|= BIT_G1;
+				if (valToPwm(pixelB) & mask) v|= BIT_B1;
 				
 				//Save the calculated value to the bitplane memory
 				*p++=v;
@@ -112,17 +116,11 @@ void displayTask(void *pvParameter)
 	TickType_t xLastWakeTime = xTaskGetTickCount();
 	while(driver_hub75_active) {
 		vTaskDelayUntil( &xLastWakeTime, 100/framerate );
-		if(compositor_status()) composite();
+		//if(compositor_status()) composite();
 		render16();
 	}
 	vTaskDelete( NULL );
 }
-
-Color* getFrameBuffer()
-{
-        return hub75_framebuffer;
-}
-
 esp_err_t driver_hub75_init(void)
 {
 	static bool driver_hub75_init_done = false;
@@ -131,10 +129,6 @@ esp_err_t driver_hub75_init(void)
 
 	//Change to set the global brightness of the display, range 1-63
 	//Warning when set too high: Do not look into LEDs with remaining eye.
-	#ifndef CONFIG_DRIVER_FRAMEBUFFER_ENABLE
-	hub75_framebuffer = malloc(HUB75_BUFFER_SIZE);
-	memset(hub75_framebuffer, 0, HUB75_BUFFER_SIZE);
-	#endif
 	
 	for (int i=0; i<BITPLANE_CNT; i++) {
 		for (int j=0; j<2; j++) {
@@ -172,10 +166,10 @@ esp_err_t driver_hub75_init(void)
 	//Setup I2S
 	i2sparallel_init(bufdesc[0], bufdesc[1]);
 
-	compositor_init();
-	#ifndef CONFIG_DRIVER_FRAMEBUFFER_ENABLE
+	//compositor_init();
+	/*#ifndef CONFIG_DRIVER_FRAMEBUFFER_ENABLE
 	compositor_setBuffer(getFrameBuffer());
-	#endif
+	#endif*/
 
 	driver_hub75_active = true;
 
@@ -206,8 +200,7 @@ void driver_hub75_set_framerate(int framerate_val)
 
 void driver_hub75_switch_buffer(uint8_t* buffer)
 {
-	hub75_framebuffer = (Color*) buffer;
-	compositor_setBuffer(hub75_framebuffer);
+	hub75_framebuffer = buffer;
 }
 
 #else // DRIVER_HUB75_ENABLE

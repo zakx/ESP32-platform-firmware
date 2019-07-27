@@ -45,8 +45,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "driver_eink.h"
 #include "driver_ili9341.h"
 
-#include "compositor.h"
-
 #include "esp_heap_caps.h"
 #include "esp_log.h"
 
@@ -56,7 +54,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #define _swap_int16_t(a, b) { int16_t t = a; a = b; b = t; }
 
-void driver_framebuffer_line(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint32_t color)
+void driver_framebuffer_line(uin8_t* buffer, int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint32_t color)
 {
 	int16_t steep = abs(y1 - y0) > abs(x1 - x0);
 	if (steep) {
@@ -84,9 +82,9 @@ void driver_framebuffer_line(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uin
 
 	for (/*empty*/; x0<=x1; x0++) {
 		if (steep) {
-			driver_framebuffer_setPixel(y0, x0, color);
+			driver_framebuffer_setPixel(buffer, y0, x0, color);
 		} else {
-			driver_framebuffer_setPixel(x0, y0, color);
+			driver_framebuffer_setPixel(buffer, x0, y0, color);
 		}
 		err -= dy;
 		if (err < 0) {
@@ -96,7 +94,7 @@ void driver_framebuffer_line(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uin
 	}
 }
 
-void driver_framebuffer_rect(int16_t x, int16_t y, uint16_t w, uint16_t h, bool fill, uint32_t color)
+void driver_framebuffer_rect(uint8_t* buffer, int16_t x, int16_t y, uint16_t w, uint16_t h, bool fill, uint32_t color)
 {
 	if (x > FB_WIDTH) return;
 	if (y > FB_HEIGHT) return;
@@ -104,16 +102,16 @@ void driver_framebuffer_rect(int16_t x, int16_t y, uint16_t w, uint16_t h, bool 
 	if (y+h > FB_WIDTH) h = FB_HEIGHT - y;
 
 	if (fill) {
-		for (int16_t i=x; i<x+w; i++) driver_framebuffer_line(i, y, i, y+h-1, color);
+		for (int16_t i=x; i<x+w; i++) driver_framebuffer_line(buffer, i, y, i, y+h-1, color);
 	} else {
-		driver_framebuffer_line(x,    y,     x+w-1, y,     color);
-		driver_framebuffer_line(x,    y+h-1, x+w-1, y+h-1, color);
-		driver_framebuffer_line(x,    y,     x,     y+h-1, color);
-		driver_framebuffer_line(x+w-1,y,     x+w-1, y+h-1, color);
+		driver_framebuffer_line(buffer, x,    y,     x+w-1, y,     color);
+		driver_framebuffer_line(buffer, x,    y+h-1, x+w-1, y+h-1, color);
+		driver_framebuffer_line(buffer, x,    y,     x,     y+h-1, color);
+		driver_framebuffer_line(buffer, x+w-1,y,     x+w-1, y+h-1, color);
 	}
 }
 
-void driver_framebuffer_circle(int16_t x0, int16_t y0, uint16_t r, uint16_t a0, uint16_t a1, bool fill, uint32_t color)
+void driver_framebuffer_circle(uint8_t* buffer, int16_t x0, int16_t y0, uint16_t r, uint16_t a0, uint16_t a1, bool fill, uint32_t color)
 {
 	int16_t f     = 1 - r;
 	int16_t ddF_x = 1;
@@ -140,32 +138,32 @@ void driver_framebuffer_circle(int16_t x0, int16_t y0, uint16_t r, uint16_t a0, 
 
 		if (fill) {
 			//Please fix this part of the code, it doesn't work well.
-			if (parts & (1<<0))         driver_framebuffer_line(x0, y0, x0 + x, y0 - y, color);
-			if (parts & (1<<1))         driver_framebuffer_line(x0, y0, x0 + y, y0 - x, color);
-			if (parts & (1<<2))         driver_framebuffer_line(x0, y0, x0 + y, y0 + x, color);
-			if (parts & (1<<3))         driver_framebuffer_line(x0, y0, x0 + x, y0 + y, color);
-			if (parts & (1<<4))         driver_framebuffer_line(x0, y0, x0 - x, y0 + y, color);
-			if (parts & (1<<5))         driver_framebuffer_line(x0, y0, x0 - y, y0 + x, color);
-			if (parts & (1<<6))         driver_framebuffer_line(x0, y0, x0 - y, y0 - x, color);
-			if (parts & (1<<7))         driver_framebuffer_line(x0, y0, x0 - x, y0 - y, color);
-			if (a0 == 0   || a1 == 360) driver_framebuffer_line(x0, y0, x0,     y0 - r, color);
-			if (a0 <= 90  && a1 >=  90) driver_framebuffer_line(x0, y0, x0 + r, y0,     color);
-			if (a0 <= 180 && a1 >= 180) driver_framebuffer_line(x0, y0, x0,     y0 + r, color);
-			if (a0 <= 270 && a1 >= 270) driver_framebuffer_line(x0, y0, x0 - r, y0,     color);
+			if (parts & (1<<0))         driver_framebuffer_line(buffer, x0, y0, x0 + x, y0 - y, color);
+			if (parts & (1<<1))         driver_framebuffer_line(buffer, x0, y0, x0 + y, y0 - x, color);
+			if (parts & (1<<2))         driver_framebuffer_line(buffer, x0, y0, x0 + y, y0 + x, color);
+			if (parts & (1<<3))         driver_framebuffer_line(buffer, x0, y0, x0 + x, y0 + y, color);
+			if (parts & (1<<4))         driver_framebuffer_line(buffer, x0, y0, x0 - x, y0 + y, color);
+			if (parts & (1<<5))         driver_framebuffer_line(buffer, x0, y0, x0 - y, y0 + x, color);
+			if (parts & (1<<6))         driver_framebuffer_line(buffer, x0, y0, x0 - y, y0 - x, color);
+			if (parts & (1<<7))         driver_framebuffer_line(buffer, x0, y0, x0 - x, y0 - y, color);
+			if (a0 == 0   || a1 == 360) driver_framebuffer_line(buffer, x0, y0, x0,     y0 - r, color);
+			if (a0 <= 90  && a1 >=  90) driver_framebuffer_line(buffer, x0, y0, x0 + r, y0,     color);
+			if (a0 <= 180 && a1 >= 180) driver_framebuffer_line(buffer, x0, y0, x0,     y0 + r, color);
+			if (a0 <= 270 && a1 >= 270) driver_framebuffer_line(buffer, x0, y0, x0 - r, y0,     color);
 		} else {
 			//This only works up until 45 degree parts, for more control please rewrite this.
-			if (parts & (1<<0))         driver_framebuffer_setPixel(x0 + x, y0 - y, color);
-			if (parts & (1<<1))         driver_framebuffer_setPixel(x0 + y, y0 - x, color);
-			if (parts & (1<<2))         driver_framebuffer_setPixel(x0 + y, y0 + x, color);
-			if (parts & (1<<3))         driver_framebuffer_setPixel(x0 + x, y0 + y, color);
-			if (parts & (1<<4))         driver_framebuffer_setPixel(x0 - x, y0 + y, color);
-			if (parts & (1<<5))         driver_framebuffer_setPixel(x0 - y, y0 + x, color);
-			if (parts & (1<<6))         driver_framebuffer_setPixel(x0 - y, y0 - x, color);
-			if (parts & (1<<7))         driver_framebuffer_setPixel(x0 - x, y0 - y, color);
-			if (a0 == 0   || a1 == 360) driver_framebuffer_setPixel(x0,     y0 - r, color);
-			if (a0 <= 90  && a1 >=  90) driver_framebuffer_setPixel(x0 + r, y0,     color);
-			if (a0 <= 180 && a1 >= 180) driver_framebuffer_setPixel(x0,     y0 + r, color);
-			if (a0 <= 270 && a1 >= 270) driver_framebuffer_setPixel(x0 - r, y0,     color);
+			if (parts & (1<<0))         driver_framebuffer_setPixel(buffer, x0 + x, y0 - y, color);
+			if (parts & (1<<1))         driver_framebuffer_setPixel(buffer, x0 + y, y0 - x, color);
+			if (parts & (1<<2))         driver_framebuffer_setPixel(buffer, x0 + y, y0 + x, color);
+			if (parts & (1<<3))         driver_framebuffer_setPixel(buffer, x0 + x, y0 + y, color);
+			if (parts & (1<<4))         driver_framebuffer_setPixel(buffer, x0 - x, y0 + y, color);
+			if (parts & (1<<5))         driver_framebuffer_setPixel(buffer, x0 - y, y0 + x, color);
+			if (parts & (1<<6))         driver_framebuffer_setPixel(buffer, x0 - y, y0 - x, color);
+			if (parts & (1<<7))         driver_framebuffer_setPixel(buffer, x0 - x, y0 - y, color);
+			if (a0 == 0   || a1 == 360) driver_framebuffer_setPixel(buffer, x0,     y0 - r, color);
+			if (a0 <= 90  && a1 >=  90) driver_framebuffer_setPixel(buffer, x0 + r, y0,     color);
+			if (a0 <= 180 && a1 >= 180) driver_framebuffer_setPixel(buffer, x0,     y0 + r, color);
+			if (a0 <= 270 && a1 >= 270) driver_framebuffer_setPixel(buffer, x0 - r, y0,     color);
 		}
 	}
 }

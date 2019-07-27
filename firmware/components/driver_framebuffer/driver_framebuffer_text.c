@@ -45,8 +45,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "driver_eink.h"
 #include "driver_ili9341.h"
 
-#include "compositor.h"
-
 #include "esp_heap_caps.h"
 #include "esp_log.h"
 

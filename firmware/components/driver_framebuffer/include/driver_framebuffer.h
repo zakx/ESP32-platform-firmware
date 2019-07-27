@@ -5,12 +5,19 @@
 #include <string.h>
 #include <stdint.h>
 #include "driver_framebuffer_font.h"
+#include "driver_framebuffer_device.h"
 #include "esp_system.h"
 
 //PNG library
 #include "mem_reader.h"
 #include "file_reader.h"
 #include "png_reader.h"
+
+//Displays
+#include "driver_ssd1306.h"
+#include "driver_erc12864.h"
+#include "driver_eink.h"
+#include "driver_ili9341.h"
 
 /* Fonts */
 extern const GFXfont fairlight8pt7b;
@@ -47,9 +54,6 @@ extern const GFXfont weather42pt8b;
 
 esp_err_t driver_framebuffer_init();
 void driver_framebuffer_flush(uint32_t flags);
-void driver_framebuffer_get_dirty(int16_t* x0, int16_t* y0, int16_t* x1, int16_t* y1);
-bool driver_framebuffer_is_dirty();
-void driver_framebuffer_set_dirty(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1);
 void driver_framebuffer_setFlags(uint8_t newFlags);
 
 //Size
@@ -92,5 +96,8 @@ esp_err_t driver_framebuffer_png(int16_t x, int16_t y, lib_reader_read_t reader,
 #define COLOR_RED   0xFF0000
 #define COLOR_GREEN 0x00FF00
 #define COLOR_BLUE  0x0000FF
+
+#include "include/driver_framebuffer_devices.h"
+#include "include/driver_framebuffer_compositor.h"
 
 #endif //_DRIVER_FRAMEBUFFER_H_

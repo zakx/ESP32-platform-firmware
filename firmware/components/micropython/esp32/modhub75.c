@@ -15,7 +15,6 @@
 
 #include "extmod/vfs_native.h"
 
-#include <compositor.h>
 #include <driver_hub75.h>
 
 #define TAG "esp32/hub75"
@@ -28,7 +27,7 @@ STATIC mp_obj_t hub75_background(mp_obj_t r_obj, mp_obj_t g_obj, mp_obj_t b_obj)
     k.RGB[3] = r;
     k.RGB[2] = g;
     k.RGB[1] = b;
-    compositor_setBackground(k);
+    //compositor_setBackground(k);
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_3(hub75_background_obj, hub75_background);
@@ -52,19 +51,19 @@ STATIC mp_obj_t hub75_framerate(mp_obj_t bright_obj) {
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(hub75_framerate_obj, hub75_framerate);
 
 STATIC mp_obj_t hub75_clear() {
-    compositor_clear();
+    //compositor_clear();
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_0(hub75_clear_obj, hub75_clear);
 
 STATIC mp_obj_t hub75_disablecomp() {
-    compositor_disable();
+    //compositor_disable();
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_0(hub75_disablecomp_obj, hub75_disablecomp);
 
 STATIC mp_obj_t hub75_enablecomp() {
-    compositor_enable();
+    //compositor_enable();
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_0(hub75_enablecomp_obj, hub75_enablecomp);
@@ -84,7 +83,7 @@ STATIC mp_obj_t hub75_text(size_t n_args, const mp_obj_t *args) {
     int x = mp_obj_get_int(args[4]);
     int y = mp_obj_get_int(args[5]);
 
-    compositor_addText(test, k, x, y);
+    //compositor_addText(test, k, x, y);
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(hub75_text_obj, 6, 6, hub75_text);
@@ -105,7 +104,7 @@ STATIC mp_obj_t hub75_scrolltext(size_t n_args, const mp_obj_t *args) {
     int y = mp_obj_get_int(args[5]);
     int sizex = mp_obj_get_int(args[6]);
 
-    compositor_addScrollText(test, k, x, y, sizex);
+    //compositor_addScrollText(test, k, x, y, sizex);
 
     return mp_const_none;
 }
@@ -132,7 +131,7 @@ STATIC mp_obj_t hub75_image(size_t n_args, const mp_obj_t *args) {
         image[i] = mp_obj_get_int64(mp_arr[i]);
     }
 
-    compositor_addImage((uint8_t *) image, x, y, width, height);
+    //compositor_addImage((uint8_t *) image, x, y, width, height);
 
     return mp_const_none;
 }
@@ -153,7 +152,7 @@ STATIC mp_obj_t hub75_pixel(size_t n_args, const mp_obj_t *args) {
      k.RGB[1] = b;
 
      image[0] = k.value;
-     compositor_addImage((uint8_t *) image, x, y, 1, 1);
+     //compositor_addImage((uint8_t *) image, x, y, 1, 1);
 
      return mp_const_none;
  }
@@ -182,7 +181,7 @@ STATIC mp_obj_t hub75_gif(size_t n_args, const mp_obj_t *args) {
         image[i] = mp_obj_get_int64(mp_arr[i]);
     }
 
-    compositor_addAnimation((uint8_t *) image, x, y, width, height, numframes);
+    //compositor_addAnimation((uint8_t *) image, x, y, width, height, numframes);
 
     return mp_const_none;
 }
@@ -197,12 +196,12 @@ STATIC mp_obj_t hub75_frame(mp_obj_t arr_obj) {
       return mp_const_none;
   }
 
-  Color* frame = getFrameBuffer();
+  /*Color* frame = getFrameBuffer();
   for(int i = 0; i < CONFIG_HUB75_WIDTH*CONFIG_HUB75_HEIGHT; i++) {
       Color k;
       k.value = mp_obj_get_int(mp_arr[i]);
       frame[i] = k;
-  }
+  }*/
 
   return mp_const_none;
 }
@@ -210,14 +209,14 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(hub75_frame_obj, hub75_frame);
 
 STATIC mp_obj_t hub75_textwidth(mp_obj_t text_obj) {
   char *text = (char*)mp_obj_str_get_str(text_obj);
-  unsigned int width = compositor_getTextWidth(text);
+  unsigned int width = 0;//compositor_getTextWidth(text);
   return mp_obj_new_int(width);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(hub75_textwidth_obj, hub75_textwidth);
 
 STATIC mp_obj_t hub75_setfont(mp_obj_t index_obj) {
   int index = mp_obj_get_int(index_obj);
-  compositor_setFont(index);
+  //compositor_setFont(index);
   return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(hub75_setfont_obj, hub75_setfont);

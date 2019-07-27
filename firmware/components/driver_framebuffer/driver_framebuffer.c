@@ -3,68 +3,14 @@
  * Uses parts of the Adafruit GFX Arduino libray
  */
 
-/*
-This is the core graphics library for all our displays, providing a common
-set of graphics primitives (points, lines, circles, etc.).  It needs to be
-paired with a hardware-specific library for each display device we carry
-(to handle the lower-level functions).
-
-Adafruit invests time and resources providing this open source code, please
-support Adafruit & open-source hardware by purchasing products from Adafruit!
-
-Copyright (c) 2013 Adafruit Industries.  All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-- Redistributions of source code must retain the above copyright notice,
-  this list of conditions and the following disclaimer.
-- Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
-LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
- */
-
-#include "include/driver_framebuffer.h"
-#include "include/driver_framebuffer_devices.h"
-
-//Displays
-#include "driver_ssd1306.h"
-#include "driver_erc12864.h"
-#include "driver_eink.h"
-#include "driver_ili9341.h"
-
-#include "compositor.h"
-
 #include "esp_heap_caps.h"
 #include "esp_log.h"
+#include "include/driver_framebuffer.h"
 
 #define TAG "fb"
 
 #ifdef CONFIG_DRIVER_FRAMEBUFFER_ENABLE
 
-bool isDirty = true;
-int16_t dirty_x0 = 0;
-int16_t dirty_y0 = 0;
-int16_t dirty_x1 = 0;
-int16_t dirty_y1 = 0;
-
-#define ORIENTATION_LANDSCAPE 0
-#define ORIENTATION_PORTRAIT  1
-
-bool orientation = ORIENTATION_LANDSCAPE;
-bool flip180     = false;
 bool useGreyscale = false;
 
 #ifdef CONFIG_DRIVER_FRAMEBUFFER_DOUBLE_BUFFERED
@@ -98,47 +44,6 @@ inline bool greyToBw(uint8_t in)
 	return in >= 128;
 }
 
-bool driver_framebuffer_is_dirty()
-{
-	return isDirty;
-}
-
-void driver_framebuffer_set_dirty(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
-{
-	isDirty = (x1 > x0) || (y1 > y0);
-	dirty_x0 = x0;
-	dirty_y0 = y0;
-	dirty_x1 = x1;
-	dirty_y1 = y1;
-}
-
-uint16_t driver_framebuffer_get_orientation()
-{
-	return orientation*90 + flip180*180;
-}
-
-void driver_framebuffer_set_orientation(uint16_t angle)
-{
-	switch(angle) {
-		case 90:
-			orientation = ORIENTATION_PORTRAIT;
-			flip180     = false;
-			break;
-		case 180:
-			orientation = ORIENTATION_LANDSCAPE;
-			flip180     = true;
-			break;
-		case 270:
-			orientation = ORIENTATION_PORTRAIT;
-			flip180     = true;
-			break;
-		default:
-			orientation = ORIENTATION_LANDSCAPE;
-			flip180     = false;
-			break;
-	}
-}
-
 esp_err_t driver_framebuffer_init()
 {
 	static bool driver_framebuffer_init_done = false;
@@ -150,7 +55,6 @@ esp_err_t driver_framebuffer_init()
 		#ifdef CONFIG_DRIVER_FRAMEBUFFER_SPIRAM
 			framebuffer1 = heap_caps_malloc(FB_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 		#else
-			//framebuffer1 = malloc(FB_SIZE);
 			framebuffer1 = heap_caps_malloc(FB_SIZE, MALLOC_CAP_8BIT);
 		#endif
 		if (!framebuffer1) return ESP_FAIL;
@@ -158,7 +62,6 @@ esp_err_t driver_framebuffer_init()
 		#ifdef CONFIG_DRIVER_FRAMEBUFFER_SPIRAM
 			framebuffer2 = heap_caps_malloc(FB_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 		#else
-			//framebuffer2 = malloc(FB_SIZE);
 			framebuffer2 = heap_caps_malloc(FB_SIZE, MALLOC_CAP_8BIT);
 		#endif
 		if (!framebuffer2) return ESP_FAIL;
@@ -168,7 +71,6 @@ esp_err_t driver_framebuffer_init()
 		#ifdef CONFIG_DRIVER_FRAMEBUFFER_SPIRAM
 		framebuffer = heap_caps_malloc(FB_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 		#else
-		//framebuffer = malloc(FB_SIZE);
 		framebuffer = heap_caps_malloc(FB_SIZE, MALLOC_CAP_8BIT);
 		#endif
 		
@@ -180,386 +82,158 @@ esp_err_t driver_framebuffer_init()
 	
 	driver_framebuffer_setFont(&freesans9pt7b);
 		
-	driver_framebuffer_fill(COLOR_FILL_DEFAULT); //1st framebuffer
+	driver_framebuffer_fill(NULL, COLOR_FILL_DEFAULT); //1st framebuffer
 	driver_framebuffer_setTextColor(COLOR_TEXT_DEFAULT);
 	driver_framebuffer_flush(FB_FLAG_FORCE | FB_FLAG_FULL);
-	driver_framebuffer_fill(COLOR_FILL_DEFAULT); //2nd framebuffer
-	
-	#ifdef CONFIG_DRIVER_HUB75_ENABLE
-	compositor_enable();
-	#endif
+	driver_framebuffer_fill(NULL, COLOR_FILL_DEFAULT); //2nd framebuffer
 	
 	driver_framebuffer_init_done = true;
 	ESP_LOGD(TAG, "init done");
 	return ESP_OK;
 }
 
-#if defined(FB_TYPE_1BPP)
-void driver_framebuffer_fill(uint32_t value)
+bool _getContext(struct Frame* frame, uint8_t** buffer, uint16_t* width, uin16_t* height)
 {
-	if (!framebuffer) {
-		ESP_LOGE(TAG, "fill without alloc!");
-		return;
-	}
-	value = greyToBw(rgbToGrey(value));
-	isDirty = true;
-	dirty_x0 = 0;
-	dirty_y0 = 0;
-	dirty_x1 = FB_WIDTH;
-	dirty_y1 = FB_HEIGHT;
-	memset(framebuffer, value ? 0xFF : 0x00, FB_SIZE);
-}
-
-void driver_framebuffer_setPixel(int16_t x, int16_t y, uint32_t value)
-{
-	if (!framebuffer) {
-		ESP_LOGE(TAG, "setPixel without alloc!");
-		return;
-	}
-	value = greyToBw(rgbToGrey(value));
-	if (orientation) { int16_t t = y; y = x; x = FB_WIDTH-t-1; }
-	if (flip180)     { y = FB_HEIGHT-y-1;    x = FB_WIDTH-x-1; }
-	if (x >= FB_WIDTH) return;
-	if (x < 0) return;
-	if (y >= FB_HEIGHT) return;
-	if (y < 0) return;
-	
-	isDirty = true;
-	if (x < dirty_x0) dirty_x0 = x;
-	if (y < dirty_y0) dirty_y0 = y;
-	if (x > dirty_x1) dirty_x1 = x;
-	if (y > dirty_y1) dirty_y1 = y;
-
-	#ifndef FB_1BPP_VERT
-		uint32_t position = (y * FB_WIDTH) + (x / 8);
-		uint8_t  bit      = x % 8;
-	#else
-		uint32_t position = ( (y / 8) * FB_WIDTH) + x;
-		uint8_t  bit      = y % 8;
-	#endif
-	framebuffer[position] ^= (-value ^ framebuffer[position]) & (1UL << bit);
-}
-
-uint32_t driver_framebuffer_getPixel(int16_t x, int16_t y)
-{
-	if (!framebuffer) {
-		ESP_LOGE(TAG, "getPixel without alloc!");
-		return 0;
-	}
-	if (orientation) { int16_t t = y; y = x; x = FB_WIDTH-t-1; }
-	if (flip180)     { y = FB_HEIGHT-y-1;    x = FB_WIDTH-x-1; }
-	if (x >= FB_WIDTH) return 0;
-	if (x < 0) return 0;
-	if (y >= FB_HEIGHT) return 0;
-	if (y < 0) return 0;
-
-	#ifndef FB_1BPP_VERT
-		uint32_t position = (y * FB_WIDTH) + (x / 8);
-		uint8_t  bit      = x % 8;
-	#else
-		uint32_t position = ( (y / 8) * FB_WIDTH) + x;
-		uint8_t  bit      = y % 8;
-	#endif
-	if ((framebuffer[position] >> bit) && 0x01) {
-		return 0xFFFFFF;
+	if (frame == NULL) {
+		//No frame provided, use global context
+		*width = FB_WIDTH;
+		*height = FB_HEIGHT;
+		*buffer = framebuffer;
+		if (!framebuffer) {
+			ESP_LOGE(TAG, "Framebuffer not allocated!");
+			return false;
+		}
 	} else {
-		return 0x000000;
+		*width  = frame->window->width;
+		*height = frame->window->height;
+		*buffer = frame->buffer;
 	}
-}
-#elif defined(FB_TYPE_8BPP)
-void driver_framebuffer_fill(uint32_t value)
-{
-	if (!framebuffer) {
-		ESP_LOGE(TAG, "fill without alloc!");
-		return;
-	}
-	value = rgbToGrey(value);
-	isDirty = true;
-	dirty_x0 = 0;
-	dirty_y0 = 0;
-	dirty_x1 = FB_WIDTH;
-	dirty_y1 = FB_HEIGHT;
-	memset(framebuffer, value, FB_SIZE);
+	return true;
 }
 
-void driver_framebuffer_setPixel(int16_t x, int16_t y, uint32_t value)
+void driver_framebuffer_fill(Frame* frame, uint32_t value)
 {
-	if (!framebuffer) {
-		ESP_LOGE(TAG, "setPixel without alloc!");
-		return;
-	}
-	value = rgbToGrey(value);
-	if (orientation) { int16_t t = y; y = x; x = FB_WIDTH-t-1; }
-	if (flip180)     { y = FB_HEIGHT-y-1;    x = FB_WIDTH-x-1; }
-	if (x >= FB_WIDTH) return;
-	if (x < 0) return;
-	if (y >= FB_HEIGHT) return;
-	if (y < 0) return;
-
-	isDirty = true;
-	if (x < dirty_x0) dirty_x0 = x;
-	if (y < dirty_y0) dirty_y0 = y;
-	if (x > dirty_x1) dirty_x1 = x;
-	if (y > dirty_y1) dirty_y1 = y;
-
-	uint32_t position = (y * FB_WIDTH) + x;
-	framebuffer[position] = value;
-}
-
-uint32_t driver_framebuffer_getPixel(int16_t x, int16_t y)
-{
-	if (!framebuffer) {
-		ESP_LOGE(TAG, "getPixel without alloc!");
-		return 0;
-	}
-	if (orientation) { int16_t t = y; y = x; x = FB_WIDTH-t-1; }
-	if (flip180)     { y = FB_HEIGHT-y-1;    x = FB_WIDTH-x-1; }
-	if (x >= FB_WIDTH) return 0;
-	if (x < 0) return 0;
-	if (y >= FB_HEIGHT) return 0;
-	if (y < 0) return 0;
-
-	uint32_t position = (y * FB_WIDTH) + x;
-	return (framebuffer[position] << 16) + (framebuffer[position]<<8) + framebuffer[position];
-}
-#elif defined(FB_TYPE_16BPP)
-void driver_framebuffer_fill(uint32_t color)
-{
-	if (!framebuffer) {
-		ESP_LOGE(TAG, "fill without alloc!");
-		return;
-	}
-	color = rgbTo565(color);
-	isDirty = true;
-	dirty_x0 = 0;
-	dirty_y0 = 0;
-	dirty_x1 = FB_WIDTH;
-	dirty_y1 = FB_HEIGHT;
-	uint8_t c0 = (color>>8)&0xFF;
-	uint8_t c1 = color&0xFF;
+	uint8_t* buffer;
+	uint16_t width, height;
+	if (!_getContext(frame, &buffer, &width, &height)) return;
+	if (!frame) driver_framebuffer_set_dirty(0,0,width-1,height-1, true);
 	
-	for (uint32_t i = 0; i < FB_SIZE; i+=2) {
-		framebuffer[i + 0] = c0;
-		framebuffer[i + 1] = c1;
-	}
+	#if   defined(FB_TYPE_1BPP)
+		memset(buffer, greyToBw(rgbToGrey(value)) ? 0xFF : 0x00, (width*height)/8);
+	#elif defined(FB_TYPE_8BPP)
+		memset(buffer, rgbToGrey(value), width*height);
+	#elif defined(FB_TYPE_16BPP)
+		color = rgbTo565(color);
+		uint8_t c0 = (color>>8)&0xFF;
+		uint8_t c1 = color&0xFF;
+		for (uint32_t i = 0; i < width*height*2; i+=2) {
+			buffer[i + 0] = c0;
+			buffer[i + 1] = c1;
+		}
+	#elif defined(FB_TYPE_24BPP)
+		uint8_t r = (color>>16)&0xFF;
+		uint8_t g = (color>>8)&0xFF;
+		uint8_t b = color&0xFF;
+		for (uint32_t i = 0; i < width*height*3; i+=3) {
+			buffer[i + 0] = r;
+			buffer[i + 1] = g;
+			buffer[i + 2] = b;
+		}
+	#elif defined(FB_TYPE_32BPP)
+		uint8_t a = (color>>24)&0xFF;
+		uint8_t r = (color>>16)&0xFF;
+		uint8_t g = (color>>8)&0xFF;
+		uint8_t b = color&0xFF;
+		for (uint32_t i = 0; i < width*height*4; i+=4) {
+			buffer[i + 0] = a;
+			buffer[i + 1] = b;
+			buffer[i + 2] = g;
+			buffer[i + 3] = r;
+		}
+	#else
+		#error "No framebuffer type configured."
+	#endif
 }
 
-void driver_framebuffer_setPixel(int16_t x, int16_t y, uint32_t color)
+void driver_framebuffer_setPixel(struct Frame* frame, int16_t x, int16_t y, uint32_t value)
 {
-	if (!framebuffer) {
-		ESP_LOGE(TAG, "setPixel without alloc!");
-		return;
-	}
-	color = rgbTo565(color);
-	uint8_t c0 = (color>>8)&0xFF;
-	uint8_t c1 = color&0xFF;
-
-	if (orientation) { int16_t t = y; y = x; x = FB_WIDTH-t-1; }
-	if (flip180)     { y = FB_HEIGHT-y-1;    x = FB_WIDTH-x-1; }
-	if (x >= FB_WIDTH) return;
-	if (x < 0) return;
-	if (y >= FB_HEIGHT) return;
-	if (y < 0) return;
-
-	isDirty = true;
-	if (x < dirty_x0) dirty_x0 = x;
-	if (y < dirty_y0) dirty_y0 = y;
-	if (x > dirty_x1) dirty_x1 = x;
-	if (y > dirty_y1) dirty_y1 = y;
-
-	uint32_t position = (y * FB_WIDTH * 2) + (x * 2);
-	framebuffer[position + 0] = c0;
-	framebuffer[position + 1] = c1;
-}
-uint32_t driver_framebuffer_getPixel(int16_t x, int16_t y)
-{
-	if (!framebuffer) {
-		ESP_LOGE(TAG, "getPixel without alloc!");
-		return 0;
-	}
-	if (orientation) { int16_t t = y; y = x; x = FB_WIDTH-t-1; }
-	if (flip180)     { y = FB_HEIGHT-y-1;    x = FB_WIDTH-x-1; }
-	if (x >= FB_WIDTH) return 0;
-	if (x < 0) return 0;
-	if (y >= FB_HEIGHT) return 0;
-	if (y < 0) return 0;
-
-	uint32_t position = (y * FB_WIDTH * 2) + (x * 2);
-	uint32_t color = (framebuffer[position] << 8) + (framebuffer[position + 1]);
-	uint8_t r = ((((color >> 11) & 0x1F) * 527) + 23) >> 6;
-
-	uint8_t g = ((((color >> 5) & 0x3F) * 259) + 33) >> 6;
-
-	uint8_t b = (((color & 0x1F) * 527) + 23) >> 6;
-	return r << 16 | g << 8 | b;;
-}
-#elif defined(FB_TYPE_24BPP)
-void driver_framebuffer_fill(uint32_t color)
-{
-	if (!framebuffer) {
-		ESP_LOGE(TAG, "fill without alloc!");
-		return;
-	}
-	isDirty = true;
-	dirty_x0 = 0;
-	dirty_y0 = 0;
-	dirty_x1 = FB_WIDTH;
-	dirty_y1 = FB_HEIGHT;
-	uint8_t r = (color>>16)&0xFF;
-	uint8_t g = (color>>8)&0xFF;
-	uint8_t b = color&0xFF;
-
-	for (uint32_t i = 0; i < FB_SIZE; i+=3) {
-		framebuffer[i + 0] = r;
-		framebuffer[i + 1] = g;
-		framebuffer[i + 2] = b;
-	}
-}
-
-void driver_framebuffer_setPixel(int16_t x, int16_t y, uint32_t color)
-{
-	if (!framebuffer) {
-		ESP_LOGE(TAG, "setPixel without alloc!");
-		return;
-	}
-	uint8_t r = (color>>16)&0xFF;
-	uint8_t g = (color>>8)&0xFF;
-	uint8_t b = color&0xFF;
-
-	if (orientation) { int16_t t = y; y = x; x = FB_WIDTH-t-1; }
-	if (flip180)     { y = FB_HEIGHT-y-1;    x = FB_WIDTH-x-1; }
-	if (x >= FB_WIDTH) return;
-	if (x < 0) return;
-	if (y >= FB_HEIGHT) return;
-	if (y < 0) return;
-
-	isDirty = true;
-	if (x < dirty_x0) dirty_x0 = x;
-	if (y < dirty_y0) dirty_y0 = y;
-	if (x > dirty_x1) dirty_x1 = x;
-	if (y > dirty_y1) dirty_y1 = y;
-
-	uint32_t position = (y * FB_WIDTH * 3) + (x * 3);
-	framebuffer[position + 0] = r;
-	framebuffer[position + 1] = g;
-	framebuffer[position + 2] = b;
-}
-uint32_t driver_framebuffer_getPixel(int16_t x, int16_t y)
-{
-	if (!framebuffer) {
-		ESP_LOGE(TAG, "getPixel without alloc!");
-		return 0;
-	}
-	if (orientation) { int16_t t = y; y = x; x = FB_WIDTH-t-1; }
-	if (flip180)     { y = FB_HEIGHT-y-1;    x = FB_WIDTH-x-1; }
-	if (x >= FB_WIDTH) return 0;
-	if (x < 0) return 0;
-	if (y >= FB_HEIGHT) return 0;
-	if (y < 0) return 0;
+	uint8_t* buffer; uint16_t width, height;
+	if (!_getContext(frame, &buffer, &width, &height)) return;
+	if (!_applyOrientation(width, height, &x, &y)) return;
+	if (!frame) driver_framebuffer_set_dirty(x,y,x,y,false);
 	
-	uint32_t position = (y * FB_WIDTH * 3) + (x * 3);
-	return (framebuffer[position] << 16) + (framebuffer[position+1] << 8) + (framebuffer[position + 2]);
+	#if defined(FB_TYPE_1BPP)
+		value = greyToBw(rgbToGrey(value));
+		#ifndef FB_1BPP_VERT
+			uint32_t position = (y * width) + (x / 8);
+			uint8_t  bit      = x % 8;
+		#else
+			uint32_t position = ( (y / 8) * width) + x;
+			uint8_t  bit      = y % 8;
+		#endif
+		buffer[position] ^= (-value ^ buffer[position]) & (1UL << bit);
+	#elif defined(FB_TYPE_8BPP)
+		value = rgbToGrey(value);
+		uint32_t position = (y * width) + x;
+		buffer[position] = value;
+	#elif defined(FB_TYPE_16BPP)
+		uint32_t position = (y * width * 2) + (x * 2);
+		buffer[position + 0] = c0;
+		buffer[position + 1] = c1;
+	#elif defined(FB_TYPE_24BPP)
+		uint32_t position = (y * width * 3) + (x * 3);
+		buffer[position + 0] = r;
+		buffer[position + 1] = g;
+		buffer[position + 2] = b;
+	#elif defined(FB_TYPE_32BPP)
+		uint32_t position = (y * width * 4) + (x * 4);
+		buffer[position + 0] = r;
+		buffer[position + 1] = g;
+		buffer[position + 2] = b;
+		buffer[position + 3] = a;
+	#else
+		#error "No framebuffer type configured."
+	#endif
 }
-#elif defined(FB_TYPE_32BPP)
-void driver_framebuffer_fill(uint32_t color)
+
+uint32_t driver_framebuffer_getPixel(struct Frame* frame, int16_t x, int16_t y)
 {
-	if (!framebuffer) {
-		ESP_LOGE(TAG, "fill without alloc!");
-		return;
-	}
-	isDirty = true;
-	dirty_x0 = 0;
-	dirty_y0 = 0;
-	dirty_x1 = FB_WIDTH;
-	dirty_y1 = FB_HEIGHT;
-	uint8_t r = (color>>16)&0xFF;
-	uint8_t g = (color>>8)&0xFF;
-	uint8_t b = color&0xFF;
-	uint8_t a = 0xFF;
+	uint8_t* buffer; uint16_t width, height;
+	if (!_getContext(frame, &buffer, &width, &height)) return 0;
+	if (!_applyOrientation(width, height, &x, &y)) return 0;
 
-	for (uint32_t i = 0; i < FB_SIZE; i+=4) {
-		framebuffer[i + 0] = a;
-		framebuffer[i + 1] = b;
-		framebuffer[i + 2] = g;
-		framebuffer[i + 3] = r;
-	}
-}
-
-void driver_framebuffer_setPixel(int16_t x, int16_t y, uint32_t color)
-{
-	if (!framebuffer) {
-		ESP_LOGE(TAG, "setPixel without alloc!");
-		return;
-	}
-	uint8_t a = 0xFF;
-	uint8_t r = (color>>16)&0xFF;
-	uint8_t g = (color>>8)&0xFF;
-	uint8_t b = color&0xFF;
-
-	if (orientation) { int16_t t = y; y = x; x = FB_WIDTH-t-1; }
-	if (flip180)     { y = FB_HEIGHT-y-1;    x = FB_WIDTH-x-1; }
-	if (x >= FB_WIDTH) return;
-	if (x < 0) return;
-	if (y >= FB_HEIGHT) return;
-	if (y < 0) return;
-
-	isDirty = true;
-	if (x < dirty_x0) dirty_x0 = x;
-	if (y < dirty_y0) dirty_y0 = y;
-	if (x > dirty_x1) dirty_x1 = x;
-	if (y > dirty_y1) dirty_y1 = y;
-
-	uint32_t position = (y * FB_WIDTH * 4) + (x * 4);
-	framebuffer[position + 0] = a;
-	framebuffer[position + 1] = b;
-	framebuffer[position + 2] = g;
-	framebuffer[position + 3] = r;
-}
-uint32_t driver_framebuffer_getPixel(int16_t x, int16_t y)
-{
-	if (!framebuffer) {
-		ESP_LOGE(TAG, "getPixel without alloc!");
-		return 0;
-	}
-	if (orientation) { int16_t t = y; y = x; x = FB_WIDTH-t-1; }
-	if (flip180)     { y = FB_HEIGHT-y-1;    x = FB_WIDTH-x-1; }
-	if (x >= FB_WIDTH) return 0;
-	if (x < 0) return 0;
-	if (y >= FB_HEIGHT) return 0;
-	if (y < 0) return 0;
-
-	uint32_t position = (y * FB_WIDTH * 4) + (x * 4);
-	return (framebuffer[position+3] << 16) + (framebuffer[position+2] << 8) + (framebuffer[position + 1]);
-}
-#else
-#error "Framebuffer can not be enabled without valid output configuration."
-#endif
-
-void driver_framebuffer_get_dirty(int16_t* x0, int16_t* y0, int16_t* x1, int16_t* y1)
-{
-	*x0 = dirty_x0;
-	*y0 = dirty_y0;
-	*x1 = dirty_x1;
-	*y1 = dirty_y1;
-
-	if (flip180) {
-		int16_t tx0 = *x0;
-		int16_t ty0 = *y0;
-		*x0 = FB_WIDTH-*x1-1;
-		*y0 = FB_HEIGHT-*y1-1;
-		*x1 = FB_WIDTH-tx0-1;
-		*y1 = FB_HEIGHT-ty0-1;
-	}
-
-	if (orientation) {
-		int16_t tx0 = *x0;
-		int16_t tx1 = *x1;
-		int16_t ty1 = *y1;
-		*x0 = *y0;
-		*y0 = FB_WIDTH-tx1-1;
-		*x1 = ty1;
-		*y1 = FB_WIDTH-tx0-1;
-	}
+	#if defined(FB_TYPE_1BPP)
+		#ifndef FB_1BPP_VERT
+			uint32_t position = (y * width) + (x / 8);
+			uint8_t  bit      = x % 8;
+		#else
+			uint32_t position = ( (y / 8) * width) + x;
+			uint8_t  bit      = y % 8;
+		#endif
+		if ((buffer[position] >> bit) && 0x01) {
+			return 0xFFFFFF;
+		} else {
+			return 0x000000;
+		}
+	#elif defined(FB_TYPE_8BPP)
+		uint32_t position = (y * width) + x;
+		return (buffer[position] << 16) + (buffer[position]<<8) + buffer[position];
+	#elif defined(FB_TYPE_16BPP)
+		uint32_t position = (y * width * 2) + (x * 2);
+		uint32_t color = (buffer[position] << 8) + (buffer[position + 1]);
+		uint8_t r = ((((color >> 11) & 0x1F) * 527) + 23) >> 6;
+		uint8_t g = ((((color >> 5 ) & 0x3F) * 259) + 33) >> 6;
+		uint8_t b = ((((color      ) & 0x1F) * 527) + 23) >> 6;
+		return r << 16 | g << 8 | b;
+	#elif defined(FB_TYPE_24BPP)
+		uint32_t position = (y * width * 3) + (x * 3);
+		return (buffer[position+2] << 16) + (buffer[position+1] << 8) + (buffer[position + 0]);
+	#elif defined(FB_TYPE_32BPP)
+		uint32_t position = (y * width * 4) + (x * 4);
+		return (buffer[position+2] << 16) + (buffer[position+1] << 8) + (buffer[position + 0]);
+	#else
+		#error "No framebuffer type configured."
+	#endif
 }
 
 void driver_framebuffer_flush(uint32_t flags)
@@ -587,7 +261,7 @@ void driver_framebuffer_flush(uint32_t flags)
 	if (!isDirty) return; //No need to update
 	
 	#ifdef CONFIG_DRIVER_HUB75_ENABLE
-	compositor_disable();
+	//compositor_disable();
 	#endif
 	
 	#if defined(FB_TYPE_8BPP) && defined(DISPLAY_FLAG_8BITPIXEL)
@@ -636,7 +310,7 @@ void driver_framebuffer_flush(uint32_t flags)
 	isDirty = false;
 }
 
-esp_err_t driver_framebuffer_png(int16_t x, int16_t y, lib_reader_read_t reader, void* reader_p)
+esp_err_t driver_framebuffer_png(uint8_t* buffer, int16_t x, int16_t y, lib_reader_read_t reader, void* reader_p)
 {
 	if (!framebuffer) {
 		ESP_LOGE(TAG, "png without alloc!");
