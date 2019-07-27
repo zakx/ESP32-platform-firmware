@@ -58,6 +58,7 @@ def populate_apps():
     for app in userApps:
         add_app(app, read_metadata(app))
     add_app("snake", {"name": "Snake", "category": "system", "icon": icon_snake})
+    add_app("particle_sim", {"name": "PSIM", "category": "system", "icon": icon_snake})
     add_app("activities", {"name": "Activities", "category": "system", "icon": icon_activities})
     add_app("clock", {"name": "Clock", "category": "system", "icon": icon_clock})
     add_app("nickname", {"name": "Nickname", "category": "system", "icon": icon_nickname})
