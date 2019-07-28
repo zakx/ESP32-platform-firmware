@@ -285,6 +285,8 @@ extern const struct _mp_obj_module_t esp_module;
 extern const struct _mp_obj_module_t espnow_module;
 extern const struct _mp_obj_module_t consts_module;
 
+extern const struct _mp_obj_module_t sndmixer_module;
+
 #ifdef CONFIG_DRIVER_HUB75_ENABLE
 extern const struct _mp_obj_module_t hub75_module;
 #endif
@@ -438,6 +440,7 @@ extern const struct _mp_obj_module_t mp_module_bluetooth;
     { MP_OBJ_NEW_QSTR(MP_QSTR_uhashlib), (mp_obj_t)&mp_module_uhashlib }, \
     { MP_OBJ_NEW_QSTR(MP_QSTR_esp),      (mp_obj_t)&esp_module }, \
     { MP_OBJ_NEW_QSTR(MP_QSTR_consts), (mp_obj_t)&consts_module }, \
+    { MP_OBJ_NEW_QSTR(MP_QSTR_sndmixer), (mp_obj_t)&sndmixer_module }, \
 	BUILTIN_MODULE_CURL \
     BUILTIN_MODULE_REQUESTS \
 	BUILTIN_MODULE_BLUETOOTH \
