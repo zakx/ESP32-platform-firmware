@@ -109,6 +109,7 @@ MP_EXTRA_INC += -I$(PROJECT_PATH)/components/driver_framebuffer/include
 MP_EXTRA_INC += -I$(PROJECT_PATH)/components/driver_led_neopixel/include
 MP_EXTRA_INC += -I$(PROJECT_PATH)/components/driver_display_eink/include
 MP_EXTRA_INC += -I$(PROJECT_PATH)/components/driver_io_disobey_samd/include
+MP_EXTRA_INC += -I$(PROJECT_PATH)/components/sndmixer
 MP_EXTRA_INC += -I$(PROJECT_PATH)/components/png
 
 
@@ -193,6 +194,7 @@ SRC_C =  $(addprefix esp32/,\
 	modespnow.c \
 	moddisobeysamd.c \
 	modframebuffer.c \
+	modsndmixer.c \
 	)
 
 ifdef CONFIG_DRIVER_I2C_ENABLE
