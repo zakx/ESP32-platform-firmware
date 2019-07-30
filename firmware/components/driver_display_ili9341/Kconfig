@@ -7,33 +7,15 @@ menu "Driver: ILI9341 LCD display"
 	config PIN_NUM_ILI9341_RESET
 		depends on DRIVER_ILI9341_ENABLE
 		int "GPIO pin used for RESET"
-		default 18
-		
-	config PIN_NUM_ILI9341_CLK
-		depends on DRIVER_ILI9341_ENABLE
-		int "GPIO pin used for CLK"
-		default 19
 		
 	config PIN_NUM_ILI9341_DCX
 		depends on DRIVER_ILI9341_ENABLE
 		int "GPIO pin used for D/CX"
-		default 21
 		
 	config PIN_NUM_ILI9341_CS
 		depends on DRIVER_ILI9341_ENABLE
 		int "GPIO pin used for CS"
-		default 22
-		
-	config PIN_NUM_ILI9341_MOSI
-		depends on DRIVER_ILI9341_ENABLE
-		int "GPIO pin used for MOSI"
-		default 23
-		
-	config PIN_NUM_ILI9341_MISO
-		depends on DRIVER_ILI9341_ENABLE
-		int "GPIO pin used for MISO"
-		default 25
-	
+			
 	config PIN_NUM_ILI9341_BACKLIGHT
 		depends on DRIVER_ILI9341_ENABLE
 		int "GPIO pin used for backlight"

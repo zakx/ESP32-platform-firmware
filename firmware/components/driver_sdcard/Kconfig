@@ -1,0 +1,10 @@
+menu "Driver: SD card"
+	config DRIVER_SDCARD_ENABLE
+		depends on DRIVER_VSPI_ENABLE
+		bool "Enable the SD card driver"
+		default n
+		
+	config PIN_NUM_SDCARD_CS
+		depends on DRIVER_SDCARD_ENABLE
+		int "GPIO pin used for CS"
+endmenu

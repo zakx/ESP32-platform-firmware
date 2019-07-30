@@ -801,7 +801,7 @@ static void _setPins(int8_t miso, int8_t mosi, int8_t clk, int8_t cs, int8_t dat
 //-------------------------
 static void _sdcard_mount()
 {
-    esp_err_t ret;
+    /*esp_err_t ret;
 
 	esp_vfs_fat_sdmmc_mount_config_t mount_config = {
         .format_if_mount_failed = false,
@@ -871,7 +871,7 @@ static void _sdcard_mount()
     	mp_raise_OSError(MP_EIO);
     }
 	ESP_LOGV(TAG, "SDCard FATFS mounted.");
-    sdcard_print_info(sdmmc_card, sdcard_config.mode);
+    sdcard_print_info(sdmmc_card, sdcard_config.mode);*/
 	native_vfs_mounted[VFS_NATIVE_TYPE_SDCARD] = true;
 }
 

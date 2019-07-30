@@ -31,55 +31,12 @@ static const char *TAG = "ili9341";
 
 uint8_t *internalBuffer; //Internal transfer buffer for doing partial updates
 
-static spi_device_handle_t spi_bus = NULL;
-
-static esp_err_t driver_ili9341_release_spi(void)
-{
-	ESP_LOGI(TAG, "releasing VSPI bus");
-	esp_err_t res = spi_bus_remove_device(spi_bus);
-	assert(res == ESP_OK);
-	spi_bus = NULL;
-	res = spi_bus_free(VSPI_HOST);
-	assert(res == ESP_OK);
-	driver_vspi_freed();
-	ESP_LOGI(TAG, "releasing VSPI bus: done");
-	return ESP_OK;
-}
+static spi_device_handle_t spiDeviceHandle = NULL;
 
 static void driver_ili9341_spi_pre_transfer_callback(spi_transaction_t *t)
 {
 	uint8_t dc_level = *((uint8_t *) t->user);
 	gpio_set_level(CONFIG_PIN_NUM_ILI9341_DCX, (int) dc_level);
-}
-
-static esp_err_t driver_ili9341_claim_spi(void)
-{
-	if (spi_bus != NULL) return ESP_OK; // already claimed?
-	ESP_LOGI(TAG, "claiming VSPI bus");
-	driver_vspi_release_and_claim(driver_ili9341_release_spi);
-
-	static const spi_bus_config_t buscfg = {
-		.mosi_io_num     = CONFIG_PIN_NUM_ILI9341_MOSI,
-		.miso_io_num     = CONFIG_PIN_NUM_ILI9341_MISO,
-		.sclk_io_num     = CONFIG_PIN_NUM_ILI9341_CLK,
-		.quadwp_io_num   = -1,
-		.quadhd_io_num   = -1,
-		.max_transfer_sz = ILI9341_MAX_TRANSFERSIZE,
-	};
-	esp_err_t res = spi_bus_initialize(VSPI_HOST, &buscfg, 2);
-	if (res != ESP_OK) return res;
-	static const spi_device_interface_config_t devcfg = {
-		.clock_speed_hz = 40 * 1000 * 1000,
-		.mode           = 0,  // SPI mode 0
-		.spics_io_num   = CONFIG_PIN_NUM_ILI9341_CS,
-		.queue_size     = 1,
-		.flags          = (SPI_DEVICE_HALFDUPLEX | SPI_DEVICE_3WIRE),//SPI_DEVICE_HALFDUPLEX,
-		.pre_cb         = driver_ili9341_spi_pre_transfer_callback, // Specify pre-transfer callback to handle D/C line
-	};
-	res = spi_bus_add_device(VSPI_HOST, &devcfg, &spi_bus);
-	if (res != ESP_OK) return res;
-	ESP_LOGI(TAG, "claiming VSPI bus: done");
-	return res;
 }
 
 const uint8_t ili9341_init_data[] = {
@@ -108,30 +65,24 @@ const uint8_t ili9341_init_data[] = {
 esp_err_t driver_ili9341_send(const uint8_t *data, int len, const uint8_t dc_level)
 {
 	if (len == 0) return ESP_OK;
-	esp_err_t res = driver_ili9341_claim_spi();
-	if (res != ESP_OK) return res;
 	spi_transaction_t t = {
 		.length = len * 8,  // transaction length is in bits
 		.tx_buffer = data,
 		.user = (void *) &dc_level,
 	};
-	res = spi_device_transmit(spi_bus, &t);
-	return res;
+	return spi_device_transmit(spiDeviceHandle, &t);
 }
 
 esp_err_t driver_ili9341_receive(uint8_t *data, int len, const uint8_t dc_level)
 {
 	if (len == 0) return ESP_OK;
-	esp_err_t res = driver_ili9341_claim_spi();
-	if (res != ESP_OK) return res;
 	spi_transaction_t t = {
 		.length = len * 8,  // transaction length is in bits
 		.rxlength = len * 8,
 		.rx_buffer = data,
 		.user = (void *) &dc_level,
 	};
-	res = spi_device_transmit(spi_bus, &t);
-	return res;
+	return spi_device_transmit(spiDeviceHandle, &t);
 }
 
 esp_err_t driver_ili9341_write_initData(const uint8_t * data)
@@ -314,6 +265,19 @@ esp_err_t driver_ili9341_init(void)
 
 	//Initialize data/clock select GPIO pin
 	res = gpio_set_direction(CONFIG_PIN_NUM_ILI9341_DCX, GPIO_MODE_OUTPUT);
+	if (res != ESP_OK) return res;
+	
+	//Add the device to the SPI bus
+	
+	static const spi_device_interface_config_t devcfg = {
+		.clock_speed_hz = 40 * 1000 * 1000,
+		.mode           = 0,  // SPI mode 0
+		.spics_io_num   = CONFIG_PIN_NUM_ILI9341_CS,
+		.queue_size     = 1,
+		.flags          = (SPI_DEVICE_HALFDUPLEX | SPI_DEVICE_3WIRE),//SPI_DEVICE_HALFDUPLEX,
+		.pre_cb         = driver_ili9341_spi_pre_transfer_callback // Specify pre-transfer callback to handle D/C line
+	};
+	res = spi_bus_add_device(VSPI_HOST, &devcfg, &spiDeviceHandle);
 	if (res != ESP_OK) return res;
 
 	//Reset the LCD display

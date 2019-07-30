@@ -226,22 +226,20 @@ void mp_hal_stdout_tx_newline() {
 //------------------------------------------
 void mp_hal_stdout_tx_str(const char *str) {
 	if (str == NULL) return;
+	ESP_LOGE("RN", "TX_STR %s", str);
 	#ifdef CONFIG_MICROPY_USE_TELNET
-   	if (telnet_loggedin()) telnet_tx_strn(str, strlen(str));
-   	else {
+   	if (telnet_loggedin()) {
+		telnet_tx_strn(str, strlen(str));
+	#else
+	if (0) { //No telnet, skip.
+	#endif
+	} else {
    	   	MP_THREAD_GIL_EXIT();
    	    while (*str) {
    	        uart_tx_one_char(*str++);
    	    }
    	   	MP_THREAD_GIL_ENTER();
    	}
-	#else
-   	MP_THREAD_GIL_EXIT();
-    while (*str) {
-        uart_tx_one_char(*str++);
-    }
-   	MP_THREAD_GIL_ENTER();
-	#endif
 }
 
 // send 'len' characters from string buffer to printf channel
@@ -249,21 +247,19 @@ void mp_hal_stdout_tx_str(const char *str) {
 void mp_hal_stdout_tx_strn(const char *str, uint32_t len) {
 	if (str == NULL) return;
 	#ifdef CONFIG_MICROPY_USE_TELNET
-   	if (telnet_loggedin()) telnet_tx_strn(str, len);
-   	else {
+   	if (telnet_loggedin()) {
+		telnet_tx_strn(str, len);
+	#else
+	if (0) { //No telnet, skip.
+	#endif
+	} else {
    	   	MP_THREAD_GIL_EXIT();
    	    while (len--) {
    	        uart_tx_one_char(*str++);
+			ESP_LOGE("RN", "TX_STRN %c", *str++);
    	    }
    		MP_THREAD_GIL_ENTER();
    	}
-	#else
-   	MP_THREAD_GIL_EXIT();
-    while (len--) {
-        uart_tx_one_char(*str++);
-    }
-	MP_THREAD_GIL_ENTER();
-	#endif
 }
 
 // Efficiently convert "\n" to "\r\n"
